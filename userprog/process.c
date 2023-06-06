@@ -27,6 +27,9 @@ static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
 
+/* Project 2 */
+void argument_passing(char ** argv, int argc, struct intr_frame *if_);
+
 /* General process initializer for initd and other process. */
 static void
 process_init (void) {
@@ -429,7 +432,10 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
 
-	success = true;
+	argument_passing(argv,argc,if_);
+
+	hex_dump(if_->rsp, if_->rsp, USER_STACK - (uint64_t)if_->rsp, true); 
+	// success = true;
 
 done:
 	/* We arrive here whether the load is successful or not. */
@@ -651,6 +657,28 @@ setup_stack (struct intr_frame *if_) {
 #endif /* VM */
 
 
-void argument_passing(char ** argv, int argc, intr_frame *_if){
+void argument_passing(char ** argv, int argc, struct intr_frame *if_){
+	char * temp[64];
+	int len;
+
+	for(int i = argc - 1; i>=0; i--){
+		len = strlen(argv[i]);
+		if_->rsp = if_->rsp - (len + 1);
+		memcpy(if_->rsp, argv[i], len+1);
+		temp[i] = if_->rsp;
+	}
+
+	while(if_->rsp % 8 !=0){
+		if_->rsp--;
+		*(uint8_t *) if_->rsp = 0;
+	}
 	
+	for(int i = argc; i>=0; i--){
+		if_->rsp-=8;
+		if(i == argc) memset(if_->rsp, 0, sizeof(char**));
+		else memcpy(if_->rsp, &temp[i],sizeof(char**));
+	}
+	if_->rsp = if_->rsp - 8;
+	memset(if_->rsp, 0, 8);
+
 }
