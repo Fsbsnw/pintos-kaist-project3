@@ -340,8 +340,6 @@ load (const char *file_name, struct intr_frame *if_) {
 	strlcpy(temp,file_name,128);
 
 	for(token = strtok_r(temp," ",&save_ptr); token!=NULL; token=strtok_r(NULL," ",&save_ptr),argc++) argv[argc] = token;
-	
-	printf("argv[0] : %s\n",argv[0]);
 
 	/* Allocate and activate page directory. */
 	t->pml4 = pml4_create ();
@@ -651,3 +649,8 @@ setup_stack (struct intr_frame *if_) {
 	return success;
 }
 #endif /* VM */
+
+
+void argument_passing(char ** argv, int argc, intr_frame *_if){
+	
+}
