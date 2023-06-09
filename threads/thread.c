@@ -436,6 +436,14 @@ init_thread (struct thread *t, const char *name, int priority) {
   t->wait_on_lock = NULL;
   list_init(&(t->donators));
 
+
+	/* Project 2 */
+	t->exit_status = 0;
+	for(int i=2;i<128;i++) t->fdt[i] = NULL;
+	t->fd = 2; // 0은 stdin, 1은 stdout에 이미 할당
+	t->fdt[0] = 1; // stdin 자리: 1 배정
+	t->fdt[1] = 2; // stdout 자리: 2 배정
+
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

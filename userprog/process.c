@@ -53,6 +53,10 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 
+	/* Project 2 */
+	char * temp;
+	strtok_r(file_name," ", &temp);
+
 
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
@@ -207,9 +211,7 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	while(1){
-
-	}
+	for(int i=0;i<100000000;i++) continue;
 	return -1;
 }
 
@@ -434,8 +436,8 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	argument_passing(argv,argc,if_);
 
-	hex_dump(if_->rsp, if_->rsp, USER_STACK - (uint64_t)if_->rsp, true); 
-	// success = true;
+	// hex_dump(if_->rsp, if_->rsp, USER_STACK - (uint64_t)if_->rsp, true); 
+	success = true;
 
 done:
 	/* We arrive here whether the load is successful or not. */
@@ -681,4 +683,6 @@ void argument_passing(char ** argv, int argc, struct intr_frame *if_){
 	if_->rsp = if_->rsp - 8;
 	memset(if_->rsp, 0, 8);
 
+	if_->R.rdi = argc;
+  if_->R.rsi = if_->rsp + 8;
 }
