@@ -9,6 +9,9 @@
 #include "vm/vm.h"
 #endif
 
+/* Project 2 */
+#include "threads/synch.h"
+
 /* States in a thread's life cycle. */
 enum thread_status {
 	THREAD_RUNNING,     /* Running thread. */
@@ -105,8 +108,19 @@ struct thread {
 
 	/* Project 2 */
 	int exit_status;
-	struct file * fdt[128]; //FDT
-	int fd; // fd index
+	//struct file * fdt[128];
+	struct file ** fdt;
+	int fd;
+
+	struct intr_frame userland_if; 
+
+	struct semaphore load;
+	struct file * exec_file;
+	struct list children;
+	struct list_elem child_elem;
+
+	struct semaphore wait;
+	struct semaphore exit;
 
 
 

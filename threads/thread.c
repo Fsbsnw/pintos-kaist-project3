@@ -114,6 +114,7 @@ thread_init (void) {
 	list_init (&destruction_req);
 	/* Project 1 : init sleep list */
 	list_init (&sleep_list);
+	
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
@@ -209,8 +210,18 @@ thread_create (const char *name, int priority,
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
+	
+	t->fdt = palloc_get_multiple(PAL_ZERO,3);
+	if(t->fdt == NULL) return TID_ERROR;
+	t->fdt[0] = 1;
+	t->fdt[1] = 2;
+	
+	/* Projcet 2 */
+	list_push_back (&thread_current()->children, &t->child_elem);
+
 	/* Add to run queue. */
 	thread_unblock (t);
+	/* Project 1 */	
 	preemption();
 
 	return tid;
@@ -439,10 +450,17 @@ init_thread (struct thread *t, const char *name, int priority) {
 
 	/* Project 2 */
 	t->exit_status = 0;
-	for(int i=2;i<128;i++) t->fdt[i] = NULL;
-	t->fd = 2; // 0은 stdin, 1은 stdout에 이미 할당
-	t->fdt[0] = 1; // stdin 자리: 1 배정
-	t->fdt[1] = 2; // stdout 자리: 2 배정
+	t->exec_file = NULL;
+	// for(int i=2;i<128;i++) t->fdt[i] = NULL;
+	// t->fd = 2; // 0은 stdin, 1은 stdout에 이미 할당
+	// t->fdt[0] = 1; // stdin 자리: 1 배정
+	// t->fdt[1] = 2; // stdout 자리: 2 배정
+
+
+	list_init(&(t->children));
+	sema_init(&t->load,0);
+	sema_init(&t->wait,0);
+	sema_init(&t->exit,0);
 
 }
 

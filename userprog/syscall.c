@@ -14,6 +14,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/synch.h"
+#include "threads/palloc.h"
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
@@ -36,21 +37,18 @@ struct lock filesys_lock;
 
 void check_address(void *addr)
 {
-    if (addr == NULL)
-        exit(-1);
-    if (!is_user_vaddr(addr))
-        exit(-1);
-    if (pml4_get_page(thread_current()->pml4, addr) == NULL)
-        exit(-1);
+	if(addr == NULL) exit(-1);
+	if(!is_user_vaddr(addr)) exit(-1);
+  if (pml4_get_page(thread_current()->pml4, addr) == NULL) exit(-1);
 }
 
 
-// 1.
+// 0.
 void halt(void){
 	power_off();
 }
 
-// 2.
+// 1.
 void exit(int status)
 {
     struct thread *curr = thread_current();
@@ -59,7 +57,35 @@ void exit(int status)
     thread_exit();
 }
 
+// 2.
+int fork(const char *thread_name, struct intr_frame *f)
+{
+    return process_fork(thread_name,f);
+}
 
+// 3.
+int exec(const char *cmd_line)
+{
+
+	check_address(cmd_line);
+	char * cmd_line_copy;
+	cmd_line_copy = palloc_get_page(0);
+	if (cmd_line_copy == NULL)
+			exit(-1);
+	strlcpy(cmd_line_copy, cmd_line, PGSIZE);
+
+	// 스레드의 이름을 변경하지 않고 바로 실행한다.
+	if (process_exec(cmd_line_copy) == -1)
+			exit(-1); // 실패 시 status -1로 종료한다.
+}
+
+// 4.
+int wait(int pid)
+{
+    return process_wait(pid);
+}
+
+// 5.
 bool create(const char *file, unsigned initial_size)
 {
     check_address(file);
@@ -75,7 +101,7 @@ bool remove (const char *file) {
 // 7.
 int open (const char *file) {
 	check_address(file);
-	
+
 	int fd;
 	struct thread *cur = thread_current();
 	struct file *file_obj = filesys_open(file);
@@ -113,7 +139,6 @@ int read(int fd, void *buffer, unsigned size) {
 	unsigned char *buf = buffer;
 	int read_count;
 	check_address(buffer);
-	check_address(buffer + size -1);
 
 	if(	fd < 0 || fd>=128) return -1;
 	
@@ -135,7 +160,7 @@ int read(int fd, void *buffer, unsigned size) {
 	else if (fd == 1) return -1;
 	else {
 		lock_acquire(&filesys_lock);
-		read_count = file_read(fileobj, buffer, size); // 파일 읽어들일 동안만 lock 걸어준다.
+		read_count = file_read(fileobj, buffer, size);
 		lock_release(&filesys_lock);
 
 	}
@@ -147,7 +172,7 @@ int read(int fd, void *buffer, unsigned size) {
 // 10.
 int write (int fd, const void *buffer, unsigned size) {
 	check_address(buffer);
-	check_address(buffer + size);
+	// check_address(buffer + size);
 
 	if(	fd < 0 || fd >= 128) return -1;
 	struct thread *cur = thread_current();
@@ -166,6 +191,27 @@ int write (int fd, const void *buffer, unsigned size) {
 		lock_release(&filesys_lock);
 	}
 	return write_count;
+}
+// 11.
+void seek(int fd, unsigned position)
+{
+    if(	fd < 2 || fd >= 128) return;
+		struct thread *cur = thread_current();
+    struct file *file = cur->fdt[fd];
+    if(file == NULL)
+        return;
+    file_seek(file, position);
+}
+// 12.
+unsigned tell(int fd)
+{
+
+		if(	fd < 2 || fd >= 128) return;
+		struct thread *cur = thread_current();
+    struct file *file = cur->fdt[fd];
+    if(file == NULL)
+        return;
+    return file_tell(file);
 }
 
 // 13.
@@ -195,7 +241,7 @@ syscall_init (void) {
 
 /* The main system call interface */
 void
-syscall_handler (struct intr_frame *f UNUSED) {
+syscall_handler (struct intr_frame *f) {
 	int sys_number = f->R.rax; // rax: 시스템 콜 넘버
 	// printf("sys_number : %d\n",sys_number);
     /* 
@@ -215,15 +261,15 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_EXIT:
 			exit(f->R.rdi);
 			break;
-		// case SYS_FORK:
-		// 	fork(f->R.rdi);
-		// 	break;		
-		// case SYS_EXEC:
-		// 	exec(f->R.rdi);
-		// 	break;
-		// case SYS_WAIT:
-		// 	wait(f->R.rdi);
-		// 	break;
+		case SYS_FORK:
+			f->R.rax = fork(f->R.rdi, f);
+			break;		
+		case SYS_EXEC:
+			f->R.rax = exec(f->R.rdi);
+			break;
+		case SYS_WAIT:
+			f->R.rax = wait(f->R.rdi);
+			break;
 		case SYS_CREATE:
 			f->R.rax = create(f->R.rdi, f->R.rsi);
 			break;
@@ -242,10 +288,12 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case SYS_WRITE:
 			f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
 			break;	
-	// 	case SYS_SEEK:
-	// 		seek(f->R.rdi, f->R.rsi);		
-	// 	case SYS_TELL:
-	// 		tell(f->R.rdi);		
+		case SYS_SEEK:
+			seek(f->R.rdi, f->R.rsi);
+			break;
+		case SYS_TELL:
+			f->R.rax = tell(f->R.rdi);
+			break;
 		case SYS_CLOSE:
 			close(f->R.rdi);
 		default:
