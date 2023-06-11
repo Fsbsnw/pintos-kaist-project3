@@ -1,3 +1,9 @@
 {
-  "C_Cpp.default.configurationProvider": "ms-vscode.makefile-tools"
+  "C_Cpp.default.configurationProvider": "ms-vscode.makefile-tools",
+  "files.associations": {
+    "stdio.h": "c",
+    "thread.h": "c",
+    "*.inc": "c",
+    "main.h": "c"
+  }
 }
