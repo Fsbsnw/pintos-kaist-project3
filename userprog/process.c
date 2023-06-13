@@ -145,7 +145,7 @@ static void
  __do_fork (void *aux) {
 	struct intr_frame if_;
 	struct thread *parent = (struct thread *) aux;
-	struct thread *current = thread_current ();
+	struct thread *cur = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
 	// default
 	// struct intr_frame *parent_if;
@@ -157,14 +157,14 @@ static void
 	if_.R.rax = 0;
 
 	/* 2. Duplicate PT */
-	current->pml4 = pml4_create();
-	if (current->pml4 == NULL)
+	cur->pml4 = pml4_create();
+	if (cur->pml4 == NULL)
 		goto error;
 
-	process_activate (current);
+	process_activate (cur);
 #ifdef VM
-	supplemental_page_table_init (&current->spt);
-	if (!supplemental_page_table_copy (&current->spt, &parent->spt))
+	supplemental_page_table_init (&cur->spt);
+	if (!supplemental_page_table_copy (&cur->spt, &parent->spt))
 		goto error;
 #else
 	if (!pml4_for_each (parent->pml4, duplicate_pte, parent))
@@ -177,22 +177,19 @@ static void
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
 
-	// for (int i = 2; i < 128; i++)
-	// {
-	// 		if(parent->fdt[i] !=NULL)
-	// 			current->fdt[i] = file_duplicate(parent->fdt[i]);
-	// }
-
-	 for (int i = 0; i < 128; i++)
-    {
-        struct file *file = parent->fdt[i];
-        if (file == NULL)
-            continue;
-        if (file > 2)
-            file = file_duplicate(file);
-        current->fdt[i] = file;
-    }
-
+	struct list_elem * e;
+	struct file_descriptor * parent_des;
+	struct file_descriptor * temp;
+	for(e = list_begin(&parent->fdt); e != list_end(&parent->fdt); e = list_next(e)){
+		parent_des = list_entry(e, struct file_descriptor, elem);
+		if(parent_des->file){
+			temp = malloc(sizeof(struct file_descriptor));
+			temp->file = file_duplicate(parent_des->file);
+			temp->fd = parent_des->fd;
+			list_push_back(&cur->fdt, &temp->elem);
+		}
+	}
+	cur->next_fd = parent->next_fd;
 	
 	process_init ();
 	
@@ -277,26 +274,35 @@ process_wait (tid_t child_tid) {
 /* Exit the process. This function is called by thread_exit (). */
 void
 process_exit (void) {
-	struct thread *curr = thread_current ();
+	struct thread *cur = thread_current ();
 	/* TODO: Your code goes here.
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
 
- 	for (int i = 2; i < 128; i++)
-        close(i);
-	// palloc_free_page(curr->fdt);
-	palloc_free_multiple(curr->fdt, 3);
+	struct list_elem * e;
+	struct list_elem * next;
+	struct file_descriptor * file_des;
+	for(e = list_begin(&cur->fdt); e!=list_end(&cur->fdt); ){
+		next = list_remove(e);
+		file_des = list_entry(e, struct file_descriptor, elem);
+		file_close(file_des->file);
+		free(file_des);
+		e = next;
+	}
+
+
+
 	
-	file_close(curr->exec_file);
+	file_close(cur->exec_file);
 
 	process_cleanup ();
 
 
-	sema_up(&curr->wait);
+	sema_up(&cur->wait);
 
-	sema_down(&curr->exit);
+	sema_down(&cur->exit);
 }
 
 /* Free the current process's resources. */

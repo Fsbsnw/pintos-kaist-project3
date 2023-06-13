@@ -30,6 +30,22 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+struct file_descriptor
+{
+	struct list_elem elem;
+	struct file *file;
+	int fd;	
+};
+
+struct 
+child {
+	struct list_elem elem;
+	tid_t tid;
+	int exit_status;
+	bool die;
+	struct thread * cur;
+};
+
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -109,8 +125,10 @@ struct thread {
 	/* Project 2 */
 	int exit_status;
 	//struct file * fdt[128];
-	struct file ** fdt;
-	int fd;
+	// struct file ** fdt;
+	// int fd;
+	struct list fdt;
+	int next_fd;
 
 	struct intr_frame userland_if; 
 

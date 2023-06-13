@@ -211,10 +211,15 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF;
 
 	
-	t->fdt = palloc_get_multiple(PAL_ZERO,3);
-	if(t->fdt == NULL) return TID_ERROR;
-	t->fdt[0] = 1;
-	t->fdt[1] = 2;
+	t->next_fd = 2;
+	struct file_descriptor *fd_zero = malloc(sizeof(struct file_descriptor));
+	struct file_descriptor *fd_one = malloc(sizeof(struct file_descriptor));
+	fd_zero->fd = 0;
+	fd_zero->file = NULL;
+	fd_one->fd = 1;
+	fd_one->file = NULL;
+	list_push_back(&t->fdt, &fd_zero->elem);
+	list_push_back(&t->fdt, &fd_one->elem);
 	
 	/* Projcet 2 */
 	list_push_back (&thread_current()->children, &t->child_elem);
@@ -451,6 +456,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	/* Project 2 */
 	t->exit_status = 0;
 	t->exec_file = NULL;
+	list_init(&(t->fdt));
 	// for(int i=2;i<128;i++) t->fdt[i] = NULL;
 	// t->fd = 2; // 0은 stdin, 1은 stdout에 이미 할당
 	// t->fdt[0] = 1; // stdin 자리: 1 배정
